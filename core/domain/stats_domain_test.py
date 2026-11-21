@@ -899,6 +899,280 @@ class ExplorationIssuesTests(test_utils.GenericTestBase):
             self.exp_issues.validate()
 
 
+class LeaveForRefresherExplorationEventLogEntryTests(
+    test_utils.GenericTestBase
+):
+    """Tests the LeaveForRefresherExplorationEventLogEntry domain object."""
+
+    def setUp(self) -> None:
+        super().setUp()
+
+        self.event = stats_domain.LeaveForRefresherExplorationEventLogEntry(
+            'exp_id1',
+            'ref_exp_id1',
+            1,
+            'state_name1',
+            'session_id1',
+            2.0,
+            2,
+        )
+
+    def test_to_dict(self) -> None:
+        event_dict = self.event.to_dict()
+
+        self.assertEqual(event_dict['exp_id'], 'exp_id1')
+        self.assertEqual(event_dict['refresher_exp_id'], 'ref_exp_id1')
+        self.assertEqual(event_dict['exp_version'], 1)
+        self.assertEqual(event_dict['state_name'], 'state_name1')
+        self.assertEqual(event_dict['session_id'], 'session_id1')
+        self.assertEqual(event_dict['time_spent_in_state_secs'], 2.0)
+        self.assertEqual(event_dict['event_schema_version'], 2)
+
+    def test_from_dict(self) -> None:
+        event_dict: (
+            stats_domain.LeaveForRefresherExplorationEventLogEntryDict
+        ) = {
+            'exp_id': 'exp_id1',
+            'refresher_exp_id': 'ref_exp_id1',
+            'exp_version': 1,
+            'state_name': 'state_name1',
+            'session_id': 'session_id1',
+            'time_spent_in_state_secs': 2.0,
+            'event_schema_version': 2,
+        }
+
+        event = (
+            stats_domain.LeaveForRefresherExplorationEventLogEntry.from_dict(
+                event_dict
+            )
+        )
+
+        self.assertEqual(event.exp_id, 'exp_id1')
+        self.assertEqual(event.refresher_exp_id, 'ref_exp_id1')
+        self.assertEqual(event.exp_version, 1)
+        self.assertEqual(event.state_name, 'state_name1')
+        self.assertEqual(event.session_id, 'session_id1')
+        self.assertEqual(event.time_spent_in_state_secs, 2.0)
+        self.assertEqual(event.event_schema_version, 2)
+
+    def test_from_dict_raises_exception_when_missing_property(self) -> None:
+        event_dict = {
+            'exp_id': 'exp_id1',
+            'refresher_exp_id': 'ref_exp_id1',
+            'exp_version': 1,
+            'state_name': 'state_name1',
+            'session_id': 'session_id1',
+            'time_spent_in_state_secs': 2.0,
+        }
+
+        # TODO(#13528): Here we use MyPy ignore because we remove this test
+        # after the backend is fully type-annotated. Here ignore[arg-type]
+        # is used to test method from_dict() input type.
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'event_schema_version not in event dict.',
+        ):
+            stats_domain.LeaveForRefresherExplorationEventLogEntry.from_dict(
+                event_dict  # type: ignore[arg-type]
+            )
+
+    def test_validate_for_event_with_correct_data(self) -> None:
+        self.event.validate()
+
+    # TODO(#13528): Here we use MyPy ignore because we remove this test after
+    # the backend is fully type-annotated. Here ignore[assignment] is used to
+    # test the validate() method input type.
+    def test_validate_with_int_exp_id(self) -> None:
+        self.event.exp_id = 5  # type: ignore[assignment]
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            ('Expected exp_id to be a string, received %s' % (type(5))),
+        ):
+            self.event.validate()
+
+    def test_validate_with_empty_exp_id(self) -> None:
+        self.event.exp_id = ''
+        with self.assertRaisesRegex(
+            utils.ValidationError, 'Expected exp_id to be non-empty.'
+        ):
+            self.event.validate()
+
+    def test_validate_with_invalid_exp_id(self) -> None:
+        self.event.exp_id = 'exp id!'
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected exp_id to match the entity ID regex',
+        ):
+            self.event.validate()
+
+    # TODO(#13528): Here we use MyPy ignore because we remove this test after
+    # the backend is fully type-annotated. Here ignore[assignment] is used to
+    # test the validate() method input type.
+    def test_validate_with_int_refresher_exp_id(self) -> None:
+        self.event.refresher_exp_id = 5  # type: ignore[assignment]
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            (
+                'Expected refresher_exp_id to be a string, received %s'
+                % (type(5))
+            ),
+        ):
+            self.event.validate()
+
+    def test_validate_with_empty_refresher_exp_id(self) -> None:
+        self.event.refresher_exp_id = ''
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected refresher_exp_id to be non-empty.',
+        ):
+            self.event.validate()
+
+    def test_validate_with_invalid_refresher_exp_id(self) -> None:
+        self.event.refresher_exp_id = 'refresher exp id!'
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected refresher_exp_id to match the entity ID regex',
+        ):
+            self.event.validate()
+
+    # TODO(#13528): Here we use MyPy ignore because we remove this test after
+    # the backend is fully type-annotated. Here ignore[assignment] is used to
+    # test the validate() method input type.
+    def test_validate_exp_version_with_string(self) -> None:
+        self.event.exp_version = 'invalid_version'  # type: ignore[assignment]
+        with self.assertRaisesRegex(
+            utils.ValidationError, 'Expected exp_version to be an int'
+        ):
+            self.event.validate()
+
+    def test_validate_exp_version_with_bool(self) -> None:
+        self.event.exp_version = True
+        with self.assertRaisesRegex(
+            utils.ValidationError, 'Expected exp_version to be an int'
+        ):
+            self.event.validate()
+
+    def test_validate_exp_version_with_zero(self) -> None:
+        self.event.exp_version = 0
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected exp_version to be greater than 0',
+        ):
+            self.event.validate()
+
+    def test_validate_exp_version_with_negative_value(self) -> None:
+        self.event.exp_version = -1
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected exp_version to be greater than 0',
+        ):
+            self.event.validate()
+
+    # TODO(#13528): Here we use MyPy ignore because we remove this test after
+    # the backend is fully type-annotated. Here ignore[assignment] is used to
+    # test the validate() method input type.
+    def test_validate_with_int_state_name(self) -> None:
+        self.event.state_name = 5  # type: ignore[assignment]
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected state_name to be a string',
+        ):
+            self.event.validate()
+
+    def test_validate_with_empty_state_name(self) -> None:
+        self.event.state_name = ''
+        with self.assertRaisesRegex(
+            utils.ValidationError, 'Expected state_name to be non-empty.'
+        ):
+            self.event.validate()
+
+    # TODO(#13528): Here we use MyPy ignore because we remove this test after
+    # the backend is fully type-annotated. Here ignore[assignment] is used to
+    # test the validate() method input type.
+    def test_validate_with_int_session_id(self) -> None:
+        self.event.session_id = 5  # type: ignore[assignment]
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected session_id to be a string',
+        ):
+            self.event.validate()
+
+    def test_validate_with_empty_session_id(self) -> None:
+        self.event.session_id = ''
+        with self.assertRaisesRegex(
+            utils.ValidationError, 'Expected session_id to be non-empty.'
+        ):
+            self.event.validate()
+
+    def test_validate_time_spent_in_state_secs_with_string(self) -> None:
+        self.event.time_spent_in_state_secs = 'invalid_time'
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected time_spent_in_state_secs to be a number',
+        ):
+            self.event.validate()
+
+    def test_validate_time_spent_in_state_secs_with_bool(self) -> None:
+        self.event.time_spent_in_state_secs = True
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected time_spent_in_state_secs to be a number',
+        ):
+            self.event.validate()
+
+    def test_validate_time_spent_in_state_secs_with_negative_value(
+        self,
+    ) -> None:
+        self.event.time_spent_in_state_secs = -1.0
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            (
+                'Expected time_spent_in_state_secs to be greater than or '
+                'equal to 0'
+            ),
+        ):
+            self.event.validate()
+
+    def test_validate_time_spent_in_state_secs_with_int_value(self) -> None:
+        self.event.time_spent_in_state_secs = 2
+        self.event.validate()
+
+    # TODO(#13528): Here we use MyPy ignore because we remove this test after
+    # the backend is fully type-annotated. Here ignore[assignment] is used to
+    # test the validate() method input type.
+    def test_validate_event_schema_version_with_string(self) -> None:
+        self.event.event_schema_version = '2'  # type: ignore[assignment]
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected event_schema_version to be an int',
+        ):
+            self.event.validate()
+
+    def test_validate_event_schema_version_with_bool(self) -> None:
+        self.event.event_schema_version = True
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected event_schema_version to be an int',
+        ):
+            self.event.validate()
+
+    def test_validate_event_schema_version_with_zero(self) -> None:
+        self.event.event_schema_version = 0
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected event_schema_version to be between 1 and 2',
+        ):
+            self.event.validate()
+
+    def test_validate_event_schema_version_above_current_version(self) -> None:
+        self.event.event_schema_version = 3
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected event_schema_version to be between 1 and 2',
+        ):
+            self.event.validate()
+
+
 class PlaythroughTests(test_utils.GenericTestBase):
     """Tests the Playthrough domain object."""
 

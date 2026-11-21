@@ -23,12 +23,13 @@ import inspect
 import logging
 import re
 
-from core import feconf
+from core import feconf, utils
 from core.domain import (
     event_services,
     exp_domain,
     exp_fetchers,
     feedback_services,
+    stats_domain,
     stats_services,
     taskqueue_services,
     user_services,
@@ -315,7 +316,7 @@ class LeaveForRefresherExpEventHandlerTests(test_utils.GenericTestBase):
         self.assertEqual(all_models.count(), 0)
 
         event_services.LeaveForRefresherExpEventHandler.record(
-            'exp_id', 'refresher_exp_id', 1, 'state_name', 'session_id', 2.0
+            'exp_id', 'ref_exp_id', 1, 'state_name', 'session_id', 2.0
         )
 
         all_models = (
@@ -328,11 +329,101 @@ class LeaveForRefresherExpEventHandlerTests(test_utils.GenericTestBase):
         # Ruling out the possibility of None for mypy type checking.
         assert model is not None
         self.assertEqual(model.exp_id, 'exp_id')
-        self.assertEqual(model.refresher_exp_id, 'refresher_exp_id')
+        self.assertEqual(model.refresher_exp_id, 'ref_exp_id')
         self.assertEqual(model.state_name, 'state_name')
         self.assertEqual(model.session_id, 'session_id')
         self.assertEqual(model.exp_version, 1)
         self.assertEqual(model.time_spent_in_state_secs, 2.0)
+
+
+class LeaveForRefresherExplorationEventTests(test_utils.GenericTestBase):
+    """Tests for leave for refresher exploration event conversion and
+    saving."""
+
+    def test_get_leave_for_refresher_exp_event_from_model(self) -> None:
+        event_id = (
+            stats_models.LeaveForRefresherExplorationEventLogEntryModel.create(
+                'exp_id1',
+                'ref_exp_id1',
+                1,
+                'state_name1',
+                'session_id1',
+                2.0,
+            )
+        )
+        event_model = (
+            stats_models.LeaveForRefresherExplorationEventLogEntryModel.get(
+                event_id
+            )
+        )
+
+        # Ruling out the possibility of None for mypy type checking.
+        assert event_model is not None
+        event = event_services.get_leave_for_refresher_exp_event_from_model(
+            event_model
+        )
+
+        self.assertEqual(event.exp_id, 'exp_id1')
+        self.assertEqual(event.refresher_exp_id, 'ref_exp_id1')
+        self.assertEqual(event.exp_version, 1)
+        self.assertEqual(event.state_name, 'state_name1')
+        self.assertEqual(event.session_id, 'session_id1')
+        self.assertEqual(event.time_spent_in_state_secs, 2.0)
+        self.assertEqual(
+            event.event_schema_version,
+            feconf.CURRENT_EVENT_MODELS_SCHEMA_VERSION,
+        )
+
+    def test_save_leave_for_refresher_exp_event(self) -> None:
+        event = stats_domain.LeaveForRefresherExplorationEventLogEntry(
+            'exp_id1',
+            'ref_exp_id1',
+            1,
+            'state_name1',
+            'session_id1',
+            2.0,
+            2,
+        )
+
+        event_id = event_services.save_leave_for_refresher_exp_event(event)
+
+        saved_model = (
+            stats_models.LeaveForRefresherExplorationEventLogEntryModel.get(
+                event_id
+            )
+        )
+
+        # Ruling out the possibility of None for mypy type checking.
+        assert saved_model is not None
+        self.assertEqual(saved_model.exp_id, 'exp_id1')
+        self.assertEqual(saved_model.refresher_exp_id, 'ref_exp_id1')
+        self.assertEqual(saved_model.exp_version, 1)
+        self.assertEqual(saved_model.state_name, 'state_name1')
+        self.assertEqual(saved_model.session_id, 'session_id1')
+        self.assertEqual(saved_model.time_spent_in_state_secs, 2.0)
+        self.assertEqual(
+            saved_model.event_schema_version,
+            feconf.CURRENT_EVENT_MODELS_SCHEMA_VERSION,
+        )
+
+    def test_save_leave_for_refresher_exp_event_with_invalid_event(
+        self,
+    ) -> None:
+        event = stats_domain.LeaveForRefresherExplorationEventLogEntry(
+            'exp_id1',
+            'ref_exp_id1',
+            0,
+            'state_name1',
+            'session_id1',
+            2.0,
+            2,
+        )
+
+        with self.assertRaisesRegex(
+            utils.ValidationError,
+            'Expected exp_version to be greater than 0',
+        ):
+            event_services.save_leave_for_refresher_exp_event(event)
 
 
 class FeedbackThreadCreatedEventHandlerTests(test_utils.GenericTestBase):

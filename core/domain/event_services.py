@@ -385,14 +385,70 @@ class LeaveForRefresherExpEventHandler(BaseEventHandler):
         """Perform in-request processing of recording "leave for refresher
         exploration" events.
         """
-        stats_models.LeaveForRefresherExplorationEventLogEntryModel.create(
+        event = stats_domain.LeaveForRefresherExplorationEventLogEntry(
             exp_id,
             refresher_exp_id,
             exp_version,
             state_name,
             session_id,
             time_spent_in_state_secs,
+            feconf.CURRENT_EVENT_MODELS_SCHEMA_VERSION,
         )
+        save_leave_for_refresher_exp_event(event)
+
+
+def get_leave_for_refresher_exp_event_from_model(
+    event_model: stats_models.LeaveForRefresherExplorationEventLogEntryModel,
+) -> stats_domain.LeaveForRefresherExplorationEventLogEntry:
+    """Gets a LeaveForRefresherExplorationEventLogEntry domain object from a
+    LeaveForRefresherExplorationEventLogEntryModel instance.
+
+    Args:
+        event_model: LeaveForRefresherExplorationEventLogEntryModel. Leave for
+            refresher exploration event model in datastore.
+
+    Returns:
+        LeaveForRefresherExplorationEventLogEntry. The domain object for a
+        leave for refresher exploration event.
+    """
+    return stats_domain.LeaveForRefresherExplorationEventLogEntry(
+        event_model.exp_id,
+        event_model.refresher_exp_id,
+        event_model.exp_version,
+        event_model.state_name,
+        event_model.session_id,
+        event_model.time_spent_in_state_secs,
+        event_model.event_schema_version,
+    )
+
+
+def save_leave_for_refresher_exp_event(
+    event: stats_domain.LeaveForRefresherExplorationEventLogEntry,
+) -> str:
+    """Saves a LeaveForRefresherExplorationEventLogEntry domain object to the
+    datastore as a new LeaveForRefresherExplorationEventLogEntryModel
+    instance. Event log entries are append-only, so saving always creates a
+    new datastore entry instead of updating an existing one. New entries are
+    stored with the current event schema version, as the storage model's
+    create() method does, even though validate() also accepts legacy
+    version 1 events read back from the datastore.
+
+    Args:
+        event: LeaveForRefresherExplorationEventLogEntry. The leave for
+            refresher exploration event domain object.
+
+    Returns:
+        str. ID of the datastore instance for the event model.
+    """
+    event.validate()
+    return stats_models.LeaveForRefresherExplorationEventLogEntryModel.create(
+        event.exp_id,
+        event.refresher_exp_id,
+        event.exp_version,
+        event.state_name,
+        event.session_id,
+        event.time_spent_in_state_secs,
+    )
 
 
 class FeedbackThreadCreatedEventHandler(BaseEventHandler):

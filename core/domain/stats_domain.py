@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import json
 import numbers
+import re
 import sys
 
 from core import feconf, utils
@@ -28,8 +29,8 @@ from core.constants import constants
 
 # TODO(#14537): Refactor this file and remove imports marked
 # with 'invalid-import-from'.
+from core.domain import action_registry  # pylint: disable=invalid-import-from
 from core.domain import (  # pylint: disable=invalid-import-from
-    action_registry,  # pylint: disable=invalid-import-from
     customization_args_util,
     exp_domain,
     interaction_registry,
@@ -127,6 +128,19 @@ class ExplorationIssuesDict(TypedDict):
     exp_id: str
     exp_version: int
     unresolved_issues: List[ExplorationIssueDict]
+
+
+class LeaveForRefresherExplorationEventLogEntryDict(TypedDict):
+    """Dictionary representing the LeaveForRefresherExplorationEventLogEntry
+    object."""
+
+    exp_id: str
+    refresher_exp_id: str
+    exp_version: int
+    state_name: str
+    session_id: str
+    time_spent_in_state_secs: float
+    event_schema_version: int
 
 
 class LearnerAnswerDetailsDict(TypedDict):
@@ -1036,6 +1050,207 @@ class ExplorationIssues:
 
         for issue in self.unresolved_issues:
             issue.validate()
+
+
+class LeaveForRefresherExplorationEventLogEntry:
+    """Domain object representing a leave for refresher exploration event.
+
+    A leave for refresher event is recorded when a learner leaves the
+    current exploration for a refresher exploration.
+    """
+
+    def __init__(
+        self,
+        exp_id: str,
+        refresher_exp_id: str,
+        exp_version: int,
+        state_name: str,
+        session_id: str,
+        time_spent_in_state_secs: float,
+        event_schema_version: int,
+    ) -> None:
+        """Constructs a LeaveForRefresherExplorationEventLogEntry domain
+        object.
+
+        Args:
+            exp_id: str. ID of the exploration currently being played.
+            refresher_exp_id: str. ID of the refresher exploration.
+            exp_version: int. Version of the exploration.
+            state_name: str. Name of the current state.
+            session_id: str. ID of the current student session.
+            time_spent_in_state_secs: float. Time spent in the state before
+                this event occurred, in seconds.
+            event_schema_version: int. Version of the event schema used to
+                describe an event of this type.
+        """
+        self.exp_id = exp_id
+        self.refresher_exp_id = refresher_exp_id
+        self.exp_version = exp_version
+        self.state_name = state_name
+        self.session_id = session_id
+        self.time_spent_in_state_secs = time_spent_in_state_secs
+        self.event_schema_version = event_schema_version
+
+    def to_dict(self) -> LeaveForRefresherExplorationEventLogEntryDict:
+        """Returns a dict representation of the domain object.
+
+        Returns:
+            dict. A dict mapping of all fields of the domain object.
+        """
+        return {
+            'exp_id': self.exp_id,
+            'refresher_exp_id': self.refresher_exp_id,
+            'exp_version': self.exp_version,
+            'state_name': self.state_name,
+            'session_id': self.session_id,
+            'time_spent_in_state_secs': self.time_spent_in_state_secs,
+            'event_schema_version': self.event_schema_version,
+        }
+
+    @classmethod
+    def from_dict(
+        cls, event_dict: LeaveForRefresherExplorationEventLogEntryDict
+    ) -> LeaveForRefresherExplorationEventLogEntry:
+        """Returns a domain object instance from a dict.
+
+        Args:
+            event_dict: dict. A dict mapping of all fields of the domain
+                object.
+
+        Returns:
+            LeaveForRefresherExplorationEventLogEntry. The corresponding
+            domain object.
+        """
+        event_properties = [
+            'exp_id',
+            'refresher_exp_id',
+            'exp_version',
+            'state_name',
+            'session_id',
+            'time_spent_in_state_secs',
+            'event_schema_version',
+        ]
+        for event_property in event_properties:
+            if event_property not in event_dict:
+                raise utils.ValidationError(
+                    '%s not in event dict.' % (event_property)
+                )
+
+        event = cls(
+            event_dict['exp_id'],
+            event_dict['refresher_exp_id'],
+            event_dict['exp_version'],
+            event_dict['state_name'],
+            event_dict['session_id'],
+            event_dict['time_spent_in_state_secs'],
+            event_dict['event_schema_version'],
+        )
+
+        event.validate()
+        return event
+
+    def validate(self) -> None:
+        """Validates the LeaveForRefresherExplorationEventLogEntry domain
+        object.
+        """
+        if not isinstance(self.exp_id, str):
+            raise utils.ValidationError(
+                'Expected exp_id to be a string, received %s'
+                % type(self.exp_id)
+            )
+
+        if not self.exp_id:
+            raise utils.ValidationError('Expected exp_id to be non-empty.')
+
+        if not re.match(constants.ENTITY_ID_REGEX, self.exp_id):
+            raise utils.ValidationError(
+                'Expected exp_id to match the entity ID regex, received %s'
+                % (self.exp_id)
+            )
+
+        if not isinstance(self.refresher_exp_id, str):
+            raise utils.ValidationError(
+                'Expected refresher_exp_id to be a string, received %s'
+                % type(self.refresher_exp_id)
+            )
+
+        if not self.refresher_exp_id:
+            raise utils.ValidationError(
+                'Expected refresher_exp_id to be non-empty.'
+            )
+
+        if not re.match(constants.ENTITY_ID_REGEX, self.refresher_exp_id):
+            raise utils.ValidationError(
+                'Expected refresher_exp_id to match the entity ID regex, '
+                'received %s' % (self.refresher_exp_id)
+            )
+
+        if isinstance(self.exp_version, bool) or not isinstance(
+            self.exp_version, int
+        ):
+            raise utils.ValidationError(
+                'Expected exp_version to be an int, received %s'
+                % type(self.exp_version)
+            )
+
+        if self.exp_version <= 0:
+            raise utils.ValidationError(
+                'Expected exp_version to be greater than 0, received %s'
+                % (self.exp_version)
+            )
+
+        if not isinstance(self.state_name, str):
+            raise utils.ValidationError(
+                'Expected state_name to be a string, received %s'
+                % type(self.state_name)
+            )
+
+        if not self.state_name:
+            raise utils.ValidationError('Expected state_name to be non-empty.')
+
+        if not isinstance(self.session_id, str):
+            raise utils.ValidationError(
+                'Expected session_id to be a string, received %s'
+                % type(self.session_id)
+            )
+
+        if not self.session_id:
+            raise utils.ValidationError('Expected session_id to be non-empty.')
+
+        if isinstance(self.time_spent_in_state_secs, bool) or not isinstance(
+            self.time_spent_in_state_secs, numbers.Number
+        ):
+            raise utils.ValidationError(
+                'Expected time_spent_in_state_secs to be a number, '
+                'received %s' % type(self.time_spent_in_state_secs)
+            )
+
+        if self.time_spent_in_state_secs < 0:
+            raise utils.ValidationError(
+                'Expected time_spent_in_state_secs to be greater than or '
+                'equal to 0, received %s' % (self.time_spent_in_state_secs)
+            )
+
+        if isinstance(self.event_schema_version, bool) or not isinstance(
+            self.event_schema_version, int
+        ):
+            raise utils.ValidationError(
+                'Expected event_schema_version to be an int, received %s'
+                % type(self.event_schema_version)
+            )
+
+        if self.event_schema_version < 1 or (
+            self.event_schema_version
+            > feconf.CURRENT_EVENT_MODELS_SCHEMA_VERSION
+        ):
+            raise utils.ValidationError(
+                'Expected event_schema_version to be between 1 and %s, '
+                'received %s'
+                % (
+                    feconf.CURRENT_EVENT_MODELS_SCHEMA_VERSION,
+                    self.event_schema_version,
+                )
+            )
 
 
 class Playthrough:
